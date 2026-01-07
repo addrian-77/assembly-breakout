@@ -214,21 +214,119 @@ update_projectiles proc
         
         cmp proj_active[si], 1
         jne skip_proj_update
-            
+                
             mov al, color_black
             call draw_projectile
             
             push bx         
             
-            mov bx, proj_speed_x[si]
-            add proj_pos_x[si], bx 
-            mov bx, max_speed_x 
-            sub proj_pos_x[si], bx  
+            ; this is the projectile timer for x movement, skip unless it's reached 0
+            cmp proj_steps_x[si], 0
+            je continue_update_x
             
-            mov bx, proj_speed_y[si]
-            add proj_pos_y[si], bx 
-            mov bx, max_speed_y 
-            sub proj_pos_y[si], bx
+                ; decrease the timer
+                dec proj_steps_x[si]
+                jmp skip_update_x
+            
+            ; jump here if the x timer finished
+            continue_update_x:   
+                ; reset the timer
+                mov proj_steps_x[si], 50
+                
+                mov bx, proj_speed_x[si]
+                add proj_pos_x[si], bx                                                                        
+                
+                ; max_speed is the zeroing value. No speed (0) is actually 3, so we don't use negative values
+                ; for example, if proj_speed_x is 1, this is a negative speed, projectile will move to the left 
+                mov bx, max_speed_x 
+                sub proj_pos_x[si], bx
+                
+            skip_update_x:
+            
+            cmp proj_steps_y[si], 0
+            je continue_update_y  
+                
+                ; decrease the timer
+                dec proj_steps_y[si]
+                jmp skip_update_y
+            
+            ; jump here if the y timer finished    
+            continue_update_y:
+                ; reset the timer
+                mov proj_steps_y[si], 50
+                 
+                mov bx, proj_speed_y[si]
+                add proj_pos_y[si], bx
+                
+                ; max_speed is the zeroing value. No speed (0) is actually 3, so we don't use negative values 
+                mov bx, max_speed_y 
+                sub proj_pos_y[si], bx
+                 
+            
+            skip_update_y:
+            
+            
+            ;------------------------------------- start comparing with paddle bounds here ------------------------------------- 
+                            
+            
+            ; ------------------------------------- start comparing with screen bounds here -------------------------------------
+            ; min x is 0
+            cmp proj_pos_x[si], 0
+                jg skip_flip_x_min:
+                
+                mov proj_pos_x[si], 0
+                push bx
+                mov bx, 6               
+                sub bx, proj_speed_x[si]
+                mov proj_speed_x[si], bx    
+                pop bx
+                ; we do this because, in our case, no speed (0) is actually 3, so by doing 6 - speed, we flip the speed
+                ; this happens for all the flips below
+                
+            skip_flip_x_min:         
+            
+            ; max x is 320, but proj_size is 4, so compare with 316 
+            cmp proj_pos_x[si], 316
+                jl skip_flip_x_max
+                
+                mov proj_pos_x[si], 316               
+                push bx
+                mov bx, 6               
+                sub bx, proj_speed_x[si]
+                mov proj_speed_x[si], bx   
+                pop bx
+                    
+            skip_flip_x_max:       
+            
+            
+            
+            ; compare y bounds
+            ; min y = 0
+            cmp proj_pos_y[si], 0
+                jg skip_flip_y_min:
+                
+                mov proj_pos_y[si], 0
+                push bx
+                mov bx, 6               
+                sub bx, proj_speed_y[si]
+                mov proj_speed_y[si], bx   
+                pop bx
+            
+            skip_flip_y_min:
+            
+            ; max y = 200, but proj_size is 4, so we compare with 196
+            cmp proj_pos_y[si], 196
+                jl skip_flip_y_max
+                
+                mov proj_pos_y[si], 196
+                push bx
+                mov bx, 6               
+                sub bx, proj_speed_y[si]
+                mov proj_speed_y[si], bx 
+                pop bx
+            
+            skip_flip_y_max:    
+             
                                 
             pop bx
             
@@ -344,7 +442,8 @@ key_listener proc
     cmp al, 32
     jne n3
         mov proj_active[0], 1
-        mov proj_speed_y[0], 2
+        mov proj_speed_y[0], 2 
+        mov proj_speed_x[0], 2
         
     n3:
     
