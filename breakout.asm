@@ -215,10 +215,14 @@ update_projectiles proc
         cmp proj_active[si], 1
         jne skip_proj_update
                 
-            mov al, color_black
-            call draw_projectile
             
-            push bx         
+            
+            push bx
+            
+            mov bx, proj_pos_x[si]
+            mov proj_lastpos_x[si], bx
+            mov bx, proj_pos_y[si]
+            mov proj_lastpos_y[si], bx         
             
             ; this is the projectile timer for x movement, skip unless it's reached 0
             cmp proj_steps_x[si], 0
@@ -231,7 +235,7 @@ update_projectiles proc
             ; jump here if the x timer finished
             continue_update_x:   
                 ; reset the timer
-                mov proj_steps_x[si], 50
+                mov proj_steps_x[si], 200
                 
                 mov bx, proj_speed_x[si]
                 add proj_pos_x[si], bx                                                                        
@@ -240,6 +244,7 @@ update_projectiles proc
                 ; for example, if proj_speed_x is 1, this is a negative speed, projectile will move to the left 
                 mov bx, max_speed_x 
                 sub proj_pos_x[si], bx
+                
                 
             skip_update_x:
             
@@ -261,13 +266,75 @@ update_projectiles proc
                 ; max_speed is the zeroing value. No speed (0) is actually 3, so we don't use negative values 
                 mov bx, max_speed_y 
                 sub proj_pos_y[si], bx
+                
                  
             
             skip_update_y:
             
             
             ;------------------------------------- start comparing with paddle bounds here ------------------------------------- 
-                            
+                                
+            push bx
+            mov bx, proj_pos_y[si]
+            add bx, 3
+            
+            cmp bx, pos_y
+            pop bx
+            jne skip_paddle_check
+                
+                
+                mov bx, proj_pos_x[si]
+                inc bx
+                
+                cmp bx, pos_x
+                jl skip_paddle_check
+                    
+                    sub bx, pos_x
+                    
+                    cmp bx, 5
+                    jg check_x_1               
+                        cmp proj_speed_x[si], 1
+                        ; skip if we're at min speed, decrease otherwise
+                        je flip_y_paddle
+                            dec proj_speed_x[si]
+                        
+                        ; jump here anyway
+                        jmp flip_y_paddle
+                        
+                       
+                        
+                    check_x_1:                 
+                    ; third region, speedx = 3
+                    cmp bx, 9
+                    jg check_x_2
+                        ; don't change the speed on x, we're on the center of the paddle
+                        jmp flip_y_paddle
+                    
+                    check_x_2: 
+                    ; fifth region, speedx = 5
+                    cmp bx, 15
+                    jg skip_paddle_check       
+                        cmp proj_speed_x[si], 5 
+                        ; skip if we're at max speed, increase otherwise
+                        je flip_y_paddle
+                            inc proj_speed_x[si]
+                        ; this is optional here, flip_y is next anyways
+                        ; jmp flip_y_paddle
+                
+                
+               
+                
+            
+            flip_y_paddle:
+            mov proj_pos_y[si], 167
+            
+            push bx
+            mov bx, 6
+            sub bx, proj_speed_y[si]
+            mov proj_speed_y[si], bx
+            pop bx
+            
+            skip_paddle_check:
             
             ; ------------------------------------- start comparing with screen bounds here -------------------------------------
             ; min x is 0
@@ -330,8 +397,21 @@ update_projectiles proc
                                 
             pop bx
             
-            mov al, color_white
-            call draw_projectile
+            mov bx, proj_lastpos_x[si]
+            
+            cmp proj_pos_x[si], bx
+            jne proj_redraw
+            
+            mov bx, proj_lastpos_y[si]
+            cmp proj_pos_y[si], bx
+            je skip_proj_redraw
+                proj_redraw:
+                mov al, color_black
+                call draw_projectile
+                
+                mov al, color_white
+                call draw_projectile
+            skip_proj_redraw:
             
             
         skip_proj_update:
@@ -353,9 +433,19 @@ draw_projectile proc
     mov bh, 0     
     
     ; start at posx
+    cmp al, color_black
+    jne draw_white_row
+        mov cx, proj_lastpos_x[si]
+        jmp draw_projectile_loop_row 
+    draw_white_row:
     mov cx, proj_pos_x[si]
     draw_projectile_loop_row:
         ; column
+        cmp al, color_black
+        jne draw_white_column
+            mov dx, proj_lastpos_y[si]
+            jmp draw_projectile_loop_column
+        draw_white_column:
         mov dx, proj_pos_y[si]
         draw_projectile_loop_column: 
             ; draw
@@ -364,8 +454,15 @@ draw_projectile proc
             ; move down
             inc dx   
             push bx
-            mov bx, proj_pos_y[si]
+            cmp al, color_black
+            jne use_curr_y_bound
+                mov bx, proj_lastpos_y[si]
+                jmp got_y_bound
+            use_curr_y_bound:
+                mov bx, proj_pos_y[si]
+            got_y_bound:
             add bx, proj_size
+
                 
             ; compare, jump back 
             cmp dx, bx
@@ -378,8 +475,15 @@ draw_projectile proc
             
         ; use bx to compare
         push bx
-        mov bx, proj_pos_x[si]
+        cmp al, color_black
+        jne use_curr_x_bound
+            mov bx, proj_lastpos_x[si]
+            jmp got_x_bound
+        use_curr_x_bound:
+            mov bx, proj_pos_x[si]
+        got_x_bound:
         add bx, proj_size
+
             
         cmp cx, bx   
         pop bx
@@ -480,7 +584,11 @@ proj_speed_x    dw 50 dup(3)
 proj_speed_y    dw 50 dup(3)
 proj_steps_x    dw 50 dup(0)
 proj_steps_y    dw 50 dup(0)
-proj_active     dw 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+proj_active     dw 50 dup(0)
+
+proj_lastpos_x  dw 106, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+proj_lastpos_y  dw 167, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+
 proj_size       dw 3
 game_started    dw 0
 max_speed_x     dw 3
