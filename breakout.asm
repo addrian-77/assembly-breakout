@@ -103,9 +103,136 @@ player_init endp
 
 
 level_init proc
+    
+    
+    ; current row index
+    mov si, 0
+    ; this loop computes the y-offset
+    bricks_draw_row:
+        
+        ; save bx and ax to preserve them
+        push bx
+        push ax
+        
+        ; we need ax to make multiplications... great design
+        ; row number * stride_y
+        mov ax, si
+        mul brick_stride_y          
+        
+        ; save result in bx
+        mov bx, ax
+        
+        ; retrieve ax
+        pop ax
+        ; save the current offset
+        mov brick_offset_y, bx 
+        ; retrieve bx
+        pop bx
+        
+        push si
+        ; current column index
+        mov si, 0
+        ; this loop computes the x-offset
+        bricks_draw_column:
+            
+            ; just as before, save bx and ax
+            push bx 
+            push ax
+            ; make the multiplication using ax
+            
+            ; col number * stride_x
+            mov ax, si
+            mul brick_stride_x     
+            
+            ; save result in bx
+            mov bx, ax
+            
+            ; retrieve ax
+            pop ax
+            
+            ; inc bx, so we have 1 pixel offset on the left of the screen
+            ; we will also have 1 pixel offset to the right
+            inc bx
+            
+            ; save the current x offset
+            mov brick_offset_x, bx     
+            
+            ; retrieve bx
+            pop bx
+            
+            ; ------------------------this is where drawing begins-------------------------------
+            call draw_brick
+                    
+            inc si
+        cmp si, 29
+        jl bricks_draw_column 
+        
+        pop si
+        inc si
+        
+    cmp si, 5
+    jl bricks_draw_row
+    
     ret
 level_init endp
-                                                                    
+
+
+;-------------------------------------------------------------------
+
+
+draw_brick proc
+; set up the drawing interrupt
+    mov ah, 0ch
+    mov al, color_red
+    mov bh, 0   
+    
+    ; draw cx rows
+    mov cx, brick_offset_x
+    
+    brick_draw_row:
+        
+        ; draw dx columns
+        mov dx, brick_offset_y
+        
+        brick_draw_column:
+            
+            ; call the drawing interrupt
+            int 10h               
+            
+            ; move to the next column
+            inc dx
+            
+            ; use bx to compare if we drew enough columns
+            ; offset + height
+            ; push current bx
+            push bx
+            mov bx, brick_offset_y
+            add bx, brick_height
+        cmp dx, bx
+            ; retrieve bx
+            pop bx
+        ; jum back if we're not finished
+        jl brick_draw_column 
+        
+        ; move to the next row
+        inc cx
+        
+        ; use bx to compare if we drew enough rows
+        ; offset + width
+        ; push current bx
+        push bx
+        mov bx, brick_offset_x
+        add bx, brick_width
+    cmp cx, bx
+        ; retrieve bx
+        pop bx
+    ; jump back if we're not finished
+    jl brick_draw_row
+    
+    ret
+
+draw_brick endp                                                                    
+
                                                                     
 ;-------------------------------------------------------------------
 
@@ -235,7 +362,7 @@ update_projectiles proc
             ; jump here if the x timer finished
             continue_update_x:   
                 ; reset the timer
-                mov proj_steps_x[si], 200
+                mov proj_steps_x[si], 300
                 
                 mov bx, proj_speed_x[si]
                 add proj_pos_x[si], bx                                                                        
@@ -543,6 +670,8 @@ key_listener proc
     n2:
           
     
+    cmp game_started, 0
+    jne n3 
     cmp al, 32
     jne n3
         mov proj_active[0], 1
@@ -575,7 +704,15 @@ size_y          dw 3
 player_speed_x  dw 3
 
 ; bricks vars
-brick_size      dw 10
+brick_width     dw 10 
+brick_height    dw 4
+
+brick_stride_x  dw 11
+brick_stride_y  dw 5
+
+brick_offset_x  dw 0
+brick_offset_y  dw 0
+bricks          dw 29 dup (0)
 
 ; projectile vars
 proj_pos_x      dw 106, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
