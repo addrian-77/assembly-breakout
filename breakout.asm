@@ -451,8 +451,9 @@ update_projectiles proc
             ; using the modified coordinates of the ball
             
             ; skip check if projectile is too low  
-            ;jmp skip_bricks_check
-            cmp proj_pos_y[si], 165
+            ;jmp skip_bricks_check 
+            jmp skip_bricks_check
+            cmp proj_pos_y[si], 65
             jg skip_bricks_check
                 
                 ; save current register values
@@ -747,7 +748,8 @@ find_brick proc
     mov brick_found, 0
     
     push ax
-    push bx
+    push bx 
+    push dx
     mov ax, brick_coords_x
     mov bx, brick_stride_x
     div bx
@@ -760,10 +762,10 @@ find_brick proc
     
     mov brick_ind_y, ax
     
-    mov ax, brick_ind_x
+    mov ax, brick_ind_y
     mov bx, 29
     mul bx
-    add ax, brick_ind_y
+    add ax, brick_ind_x
     
     push si
     mov si, ax
@@ -785,11 +787,13 @@ find_brick proc
         mov brick_offset_y, ax
         
         mov brick_found, 1    
+        pop dx
         pop bx
         pop ax
         ret
         
     brick_not_found:
+    pop dx
     pop bx
     pop ax 
     ret
