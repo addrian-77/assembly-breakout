@@ -1564,7 +1564,96 @@ draw_projectile endp
 ;-------------------------------------------------------------------
 
 
-key_listener proc
+key_listener proc 
+    push cs
+    pop ds
+    
+    cmp ai_input, 0
+    je ai_input_skip 
+        ; if game over, Space resets everything
+        cmp game_over, 1
+        jne ai_not_reset_key
+        
+        cmp ai_input, 3
+        jne ai_input_skip
+        
+        call reset_game
+        jmp ai_input_skip
+        
+        ai_not_reset_key:
+    
+        cmp game_started, 0
+        jne ain3
+        cmp ai_input, 3     ; space
+        jne ain4
+            mov ai_input, 0
+            mov word ptr proj_active[0], 1
+            mov word ptr proj_speed_y[0], 1
+            mov word ptr proj_speed_x[0], 2
+            
+            mov word ptr proj_active[2], 1
+            mov word ptr proj_speed_y[2], 1
+            mov word ptr proj_speed_x[2], 2
+            
+            mov word ptr proj_active[4], 1
+            mov word ptr proj_speed_y[4], 1
+            mov word ptr proj_speed_x[4], 4
+            
+            mov word ptr proj_active[6], 1
+            mov word ptr proj_speed_y[6], 1
+            mov word ptr proj_speed_x[6], 5
+            
+            mov game_started, 1
+            
+        ain4:
+        jmp ai_input_skip
+        
+        ain3:
+        
+        ; a, decrease y
+        cmp ai_input, 1    
+        jne ain1 
+            mov ai_input, 0
+            ; call the move_left function player_speed times
+            ; save original bx on stack
+            push bx
+            mov bx, player_speed_x
+            ai_speed_loop_left:
+                ; save bx on stack                
+                push bx
+                call move_player_left
+                ; get bx back, decrement, compare and jump back
+                pop bx                    
+                dec bx
+                cmp bx, 0
+            jg ai_speed_loop_left   
+            ; retrieve the original bx
+            pop bx
+        ain1:
+        
+        ; d, increase y
+        cmp ai_input, 2    
+        jne ain2
+            mov ai_input, 0
+            ; call the move_right function player_speed times                
+            ; save original bx on stack
+            push bx
+            mov bx, player_speed_x
+            ai_speed_loop_right:
+                ; save bx on stack
+                push bx
+                call move_player_right
+                ; get bx back, decrement, compare and jump back     
+                pop bx
+                dec bx
+                cmp bx, 0
+            jg ai_speed_loop_right
+            ; retrieve the original bx
+            pop bx
+        ain2:
+    
+    ai_input_skip:
+    
     ; check if key exists
     mov ah, 01h
     int 16h     
@@ -1668,6 +1757,9 @@ key_listener endp
                                                                     
 ;-------------------------------VARS--------------------------------
 
+;memory begin offset, for memory reading
+memory_begin db 'BREAKOUT MEMORY START'
+
 
 ; player vars
 pos_x           dw 100
@@ -1741,4 +1833,6 @@ rect_color db 0
 score           dw 0
 game_over       dw 0
 
-score_digits    db '0000'
+score_digits    db '0000'  
+
+ai_input    db 0
