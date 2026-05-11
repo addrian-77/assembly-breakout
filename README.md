@@ -14,7 +14,5 @@ This project aims to port the classic Breakout game into 8086 Assembly.
 - The direction of the projectile will be changed based on where it hits the paddle
 - For projectiles, drawing is ignored if an update has not occured
 - For paddle, a full initial draw is done, then only the outer margins are redrawn to save performance
-
-## Missing features
-- Score
-- Powerups, pickups
+- Score tracking
+- Reset when game ends
