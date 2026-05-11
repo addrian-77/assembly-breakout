@@ -3,11 +3,14 @@ org 100h
 
 ; main function
 main:                    
-
+    
+    
     call graphic_init
     call player_init
+    ;jmp mainskip 
     call level_init 
     
+    mainskip:
              
     main_loop:
                                
@@ -383,422 +386,450 @@ draw_column_player endp
 update_projectiles proc
     
     mov si, 0
-    proj_updater_loop:
+
+proj_updater_loop:
+
+    cmp word ptr proj_active[si], 1
+    jne skip_proj_update
+
+    push bx
+
+    ; save last position
+    mov bx, proj_pos_x[si]
+    mov proj_lastpos_x[si], bx
+
+    mov bx, proj_pos_y[si]
+    mov proj_lastpos_y[si], bx
+
+
+    ; ---------------- update X ----------------
+
+    cmp proj_steps_x[si], 0
+    je continue_update_x
+
+        dec proj_steps_x[si]
+        jmp skip_update_x
+
+continue_update_x:
+
+    mov word ptr proj_steps_x[si], 300
+
+    mov bx, proj_speed_x[si]
+    add proj_pos_x[si], bx
+
+    mov bx, max_speed_x
+    sub proj_pos_x[si], bx
+
+skip_update_x:
+
+
+    ; ---------------- update Y ----------------
+
+    cmp proj_steps_y[si], 0
+    je continue_update_y
+
+        dec proj_steps_y[si]
+        jmp skip_update_y
+
+continue_update_y:
+
+    mov word ptr proj_steps_y[si], 50
+
+    mov bx, proj_speed_y[si]
+    add proj_pos_y[si], bx
+
+    mov bx, max_speed_y
+    sub proj_pos_y[si], bx
+
+skip_update_y:
+
+
+    ; ---------------- brick collision, coordinate based ----------------
+
+    cmp proj_pos_y[si], 65
+    jg skip_bricks_check
+
+    call check_projectile_brick_collision
+
+    cmp brick_found, 1
+    jne skip_bricks_check
+
+        ; decide bounce direction based on movement
+        mov bx, proj_lastpos_y[si]
+        cmp bx, proj_pos_y[si]
+        jne bounce_from_brick_y
+
+        mov bx, proj_lastpos_x[si]
+        cmp bx, proj_pos_x[si]
+        jne bounce_from_brick_x
+
+        jmp destroy_brick_after_bounce
+
+bounce_from_brick_y:
+        call flip_proj_y
+        jmp destroy_brick_after_bounce
+
+bounce_from_brick_x:
+        call flip_proj_x
+
+destroy_brick_after_bounce:
+
+        mov current_color, 0h
+        call draw_brick
+
+        push si
+        mov si, brick_ind
+        mov bricks[si], 0
+        pop si
+
+skip_bricks_check:
+
+
+    ; ---------------- paddle collision ----------------
+
+    push bx
+    mov bx, proj_pos_y[si]
+    add bx, 3
+
+    cmp bx, pos_y
+    pop bx
+    jne skip_paddle_check
+
+        mov bx, proj_pos_x[si]
+        inc bx
+
+        cmp bx, pos_x
+        jl skip_paddle_check
+
+        sub bx, pos_x
+
+        cmp bx, 5
+        jg check_x_1
+
+            cmp proj_speed_x[si], 1
+            je flip_y_paddle
+
+            dec proj_speed_x[si]
+            jmp flip_y_paddle
+
+check_x_1:
+
+        cmp bx, 9
+        jg check_x_2
+
+            jmp flip_y_paddle
+
+check_x_2:
+
+        cmp bx, 15
+        jg skip_paddle_check
+
+            cmp proj_speed_x[si], 5
+            je flip_y_paddle
+
+            inc proj_speed_x[si]
+
+flip_y_paddle:
+
+        mov proj_pos_y[si], 167
+        call flip_proj_y
+
+skip_paddle_check:
+
+
+    ; ---------------- screen bounds ----------------
+
+    ; left wall
+    cmp proj_pos_x[si], 0
+    jg skip_flip_x_min
+
+        mov word ptr proj_pos_x[si], 0
+        call flip_proj_x
+
+skip_flip_x_min:
+
+    ; right wall
+    cmp proj_pos_x[si], 318
+    jl skip_flip_x_max
+
+        mov word ptr proj_pos_x[si], 316
+        call flip_proj_x
+
+skip_flip_x_max:
+
+    ; ceiling
+    cmp proj_pos_y[si], 0
+    jg skip_flip_y_min
+
+        mov word ptr proj_pos_y[si], 0
+        call flip_proj_y
+
+skip_flip_y_min:
+
+    ; bottom: despawn ball instead of bouncing
+    cmp proj_pos_y[si], 196
+    jl skip_flip_y_max
         
-        cmp proj_active[si], 1
-        jne skip_proj_update
-                
-            
-            
-            push bx
-            
-            mov bx, proj_pos_x[si]
-            mov proj_lastpos_x[si], bx
-            mov bx, proj_pos_y[si]
-            mov proj_lastpos_y[si], bx         
-            
-            ; this is the projectile timer for x movement, skip unless it's reached 0
-            cmp proj_steps_x[si], 0
-            je continue_update_x
-            
-                ; decrease the timer
-                dec proj_steps_x[si]
-                jmp skip_update_x
-            
-            ; jump here if the x timer finished
-            continue_update_x:   
-                ; reset the timer
-                mov proj_steps_x[si], 300
-                
-                mov bx, proj_speed_x[si]
-                add proj_pos_x[si], bx                                                                        
-                
-                ; max_speed is the zeroing value. No speed, 0, is actually 3, so we don't use negative values
-                ; for example, if proj_speed_x is 1, this is a negative speed, projectile will move to the left 
-                mov bx, max_speed_x 
-                sub proj_pos_x[si], bx
-                
-                
-            skip_update_x:
-            
-            cmp proj_steps_y[si], 0
-            je continue_update_y  
-                
-                ; decrease the timer
-                dec proj_steps_y[si]
-                jmp skip_update_y
-            
-            ; jump here if the y timer finished    
-            continue_update_y:
-                ; reset the timer
-                mov proj_steps_y[si], 50
-                 
-                mov bx, proj_speed_y[si]
-                add proj_pos_y[si], bx
-                
-                ; max_speed is the zeroing value. No speed, 0, is actually 3, so we don't use negative values 
-                mov bx, max_speed_y 
-                sub proj_pos_y[si], bx
-                
-                 
-            
-            skip_update_y:
-            
-            
-            ;------------------------------------- start comparing with bricks bounds here ------------------------------------- 
-            
-            ; in order to check if we collided with a brick, check the pixel colors
-            ; using the modified coordinates of the ball
-            
-            ; skip check if projectile is too low  
-            ;jmp skip_bricks_check 
-            jmp skip_bricks_check
-            cmp proj_pos_y[si], 65
-            jg skip_bricks_check
-                
-                ; save current register values
-                push ax
-                push cx
-                push dx
-                
-                ; obtain the 4 colors, then use them to determine which side of a brick we've hit
-                mov ah, 0dh
-                mov cx, proj_pos_x[si]
-                mov dx, proj_pos_y[si]
-                int 10h
-                
-                mov proj_top_left, al
-                
-                ; move right once
-                inc cx
-                int 10h
-                
-                mov proj_top_right, al
-                
-                ; go down once
-                inc dx
-                int 10h
-                
-                mov proj_bot_right, al
-                
-                ; move left once
-                dec cx
-                int 10h
-                
-                mov proj_bot_left, al
-                
-                ; retrieve registers
-                pop dx
-                pop cx
-                pop ax              
-                
-                                      
-                cmp proj_top_left, 0h
-                je top_left_check_1   
-                    cmp proj_top_left, 0fh
-                    je top_left_check_1
-                
-                    cmp proj_top_right, 0h
-                    je top_right_check_1
-                    
-                    cmp proj_top_right, 0fh
-                    je top_right_check_1
-                    
-                        ; proj hit the bottom of a brick 
-                        push bx
-                        mov bx, proj_pos_x[si]
-                        mov brick_coords_x, bx
-                        mov bx, proj_pos_y[si]
-                        mov brick_coords_y, bx
-                        pop bx
-                        
-                        call find_brick 
-                        
-                        cmp brick_found, 0
-                        je skip_bricks_check
-                            
-                            mov current_color, 0h
-                            call draw_brick
-                                       
-                            push si
-                            
-                            mov si, brick_ind
-                            
-                            mov bricks[si], 0
-                            
-                            pop si
-                            
-                            jmp skip_bricks_check
-                    
-                    top_right_check_1:       
-                        
-                        ; proj hit the left of a brick
-                        jmp skip_bricks_check
-                
-                top_left_check_1:
-                    
-                    cmp proj_top_right, 0h
-                    je top_right_check_2
-                    
-                    cmp proj_top_right, 0fh
-                    je top_right_check_2
-                    
-                        ; proj hit the right of a brick
-                        jmp skip_bricks_check
-                    
-                    top_right_check_2:       
-                        
-                        cmp proj_bot_left, 0h
-                        je bot_left_check_2
-                        
-                        cmp proj_bot_left, 0fh
-                        je bot_left_check_2
-                        
-                            cmp proj_bot_right, 0h
-                            je bot_right_check_1  
-                            
-                            cmp proj_bot_right, 0fh
-                            je bot_right_check_1
-                            
-                                ; proj hit the top of a brick
-                                jmp skip_bricks_check
-                            
-                            bot_right_check_1:       
-                            
-                                ; proj hit the left of a brick
-                                jmp skip_bricks_check
-                        
-                        bot_left_check_2:            
-                            
-                            cmp proj_bot_right, 0h
-                            je bot_right_check_2 
-                            
-                            cmp proj_bot_right, 0fh
-                            je bot_right_check_2
-                            
-                                ; proj hit the right of a brick
-                                jmp skip_bricks_check
-                            
-                            bot_right_check_2: 
-                                
-                                ; proj did not hit anything
-                                jmp skip_bricks_check
-                        
-                         
-                              
-            skip_bricks_check:
-            
-            ;------------------------------------- start comparing with paddle bounds here ------------------------------------- 
-                                
-            push bx
-            mov bx, proj_pos_y[si]
-            add bx, 3
-            
-            cmp bx, pos_y
-            pop bx
-            jne skip_paddle_check
-                
-                
-                mov bx, proj_pos_x[si]
-                inc bx
-                
-                cmp bx, pos_x
-                jl skip_paddle_check
-                    
-                    sub bx, pos_x
-                    
-                    cmp bx, 5
-                    jg check_x_1               
-                        cmp proj_speed_x[si], 1
-                        ; skip if we're at min speed, decrease otherwise
-                        je flip_y_paddle
-                            dec proj_speed_x[si]
-                        
-                        ; jump here anyway
-                        jmp flip_y_paddle
-                        
-                       
-                        
-                    check_x_1:                 
-                    ; third region, speedx = 3
-                    cmp bx, 9
-                    jg check_x_2
-                        ; don't change the speed on x, we're on the center of the paddle
-                        jmp flip_y_paddle
-                    
-                    check_x_2: 
-                    ; fifth region, speedx = 5
-                    cmp bx, 15
-                    jg skip_paddle_check       
-                        cmp proj_speed_x[si], 5 
-                        ; skip if we're at max speed, increase otherwise
-                        je flip_y_paddle
-                            inc proj_speed_x[si]
-                        ; this is optional here, flip_y is next anyways
-                        ; jmp flip_y_paddle
-                
-                
-               
-                
-            
-            flip_y_paddle:
-            mov proj_pos_y[si], 167
-            
-            push bx
-            mov bx, 6
-            sub bx, proj_speed_y[si]
-            mov proj_speed_y[si], bx
-            pop bx
-            
-            skip_paddle_check:
-            
-            ; ------------------------------------- start comparing with screen bounds here -------------------------------------
-            ; min x is 0
-            cmp proj_pos_x[si], 0
-                jg skip_flip_x_min:
-                
-                mov proj_pos_x[si], 0
-                push bx
-                mov bx, 6               
-                sub bx, proj_speed_x[si]
-                mov proj_speed_x[si], bx    
-                pop bx
-                ; we do this because, in our case, no speed (0) is actually 3, so by doing 6 - speed, we flip the speed
-                ; this happens for all the flips below
-                
-            skip_flip_x_min:         
-            
-            ; max x is 320, but proj_size is 4, so compare with 316 
-            cmp proj_pos_x[si], 316
-                jl skip_flip_x_max
-                
-                mov proj_pos_x[si], 316               
-                push bx
-                mov bx, 6               
-                sub bx, proj_speed_x[si]
-                mov proj_speed_x[si], bx   
-                pop bx
-                    
-            skip_flip_x_max:       
-            
-            
-            
-            ; compare y bounds
-            ; min y = 0
-            cmp proj_pos_y[si], 0
-                jg skip_flip_y_min:
-                
-                mov proj_pos_y[si], 0
-                push bx
-                mov bx, 6               
-                sub bx, proj_speed_y[si]
-                mov proj_speed_y[si], bx   
-                pop bx
-            
-            skip_flip_y_min:
-            
-            ; max y = 200, but proj_size is 4, so we compare with 196
-            cmp proj_pos_y[si], 196
-                jl skip_flip_y_max
-                
-                mov proj_pos_y[si], 196
-                push bx
-                mov bx, 6               
-                sub bx, proj_speed_y[si]
-                mov proj_speed_y[si], bx 
-                pop bx
-            
-            skip_flip_y_max:    
-             
-                                
-            pop bx
-            
-            mov bx, proj_lastpos_x[si]
-            
-            cmp proj_pos_x[si], bx
-            jne proj_redraw
-            
-            mov bx, proj_lastpos_y[si]
-            cmp proj_pos_y[si], bx
-            je skip_proj_redraw
-                proj_redraw:
-                mov al, color_black
-                call draw_projectile
-                
-                mov al, color_white
-                call draw_projectile
-            skip_proj_redraw:
-            
-            
-        skip_proj_update:
+        ; remove these lines, these lines bounce the ball
+        call flip_proj_y
+        jmp skip_flip_y_max
+        ; delete above
         
-        inc si
-        cmp si, 51 
+        mov al, color_black
+        call draw_projectile
+
+        mov word ptr proj_active[si], 0
+
+        pop bx
+        jmp skip_proj_update
+
+skip_flip_y_max:
+
+
+    ; ---------------- redraw projectile ----------------
+
+    pop bx
+
+    mov bx, proj_lastpos_x[si]
+    cmp proj_pos_x[si], bx
+    jne proj_redraw
+
+    mov bx, proj_lastpos_y[si]
+    cmp proj_pos_y[si], bx
+    je skip_proj_redraw
+
+proj_redraw:
+
+    mov al, color_black
+    call draw_projectile
+
+    mov al, color_white
+    call draw_projectile
+
+skip_proj_redraw:
+
+
+skip_proj_update:
+
+    add si, 2
+    cmp si, 100
     jl proj_updater_loop
-    
+
     ret
+
 update_projectiles endp
 
 
 ;-------------------------------------------------------------------
 
 
-find_brick proc
-    
+check_projectile_brick_collision proc
+    ; checks all 4 ball corners
+    ; output:
+    ; brick_found = 1 if hit
+    ; brick_ind, brick_offset_x, brick_offset_y set by check_brick_at_point
+
     mov brick_found, 0
-    
+
+    push bx
+
+    ; top-left
+    mov bx, proj_pos_x[si]
+    mov brick_coords_x, bx
+
+    mov bx, proj_pos_y[si]
+    mov brick_coords_y, bx
+
+    call check_brick_at_point
+
+    cmp brick_found, 1
+    je projectile_collision_done
+
+
+    ; top-right
+    mov bx, proj_pos_x[si]
+    add bx, proj_size
+    dec bx
+    mov brick_coords_x, bx
+
+    mov bx, proj_pos_y[si]
+    mov brick_coords_y, bx
+
+    call check_brick_at_point
+
+    cmp brick_found, 1
+    je projectile_collision_done
+
+
+    ; bottom-left
+    mov bx, proj_pos_x[si]
+    mov brick_coords_x, bx
+
+    mov bx, proj_pos_y[si]
+    add bx, proj_size
+    dec bx
+    mov brick_coords_y, bx
+
+    call check_brick_at_point
+
+    cmp brick_found, 1
+    je projectile_collision_done
+
+
+    ; bottom-right
+    mov bx, proj_pos_x[si]
+    add bx, proj_size
+    dec bx
+    mov brick_coords_x, bx
+
+    mov bx, proj_pos_y[si]
+    add bx, proj_size
+    dec bx
+    mov brick_coords_y, bx
+
+    call check_brick_at_point
+
+projectile_collision_done:
+
+    pop bx
+    ret
+
+check_projectile_brick_collision endp
+
+
+;-------------------------------------------------------------------  
+
+
+check_brick_at_point proc
+    ; input:
+    ; brick_coords_x
+    ; brick_coords_y
+    ;
+    ; output:
+    ; brick_found = 1 or 0
+    ; brick_ind
+    ; brick_offset_x
+    ; brick_offset_y
+
+    mov brick_found, 0
+
     push ax
-    push bx 
+    push bx
     push dx
+    push si
+
+    ; x must be >= 1
     mov ax, brick_coords_x
+    cmp ax, 1
+    jl no_brick_at_point
+
+    dec ax
+    xor dx, dx
     mov bx, brick_stride_x
     div bx
-    
-    mov brick_ind_x, ax
-    
+
+    mov brick_ind_x, ax       ; column
+    mov bx, dx                ; x inside cell
+
+    cmp brick_ind_x, 29
+    jge no_brick_at_point
+
+    cmp bx, brick_width
+    jge no_brick_at_point
+
+
+    ; y must be >= 1
     mov ax, brick_coords_y
+    cmp ax, 1
+    jl no_brick_at_point
+
+    dec ax
+    xor dx, dx
     mov bx, brick_stride_y
     div bx
-    
-    mov brick_ind_y, ax
-    
+
+    mov brick_ind_y, ax       ; row
+    mov bx, dx                ; y inside cell
+
+    cmp brick_ind_y, 12
+    jge no_brick_at_point
+
+    cmp bx, brick_height
+    jge no_brick_at_point
+
+
+    ; index = row * 29 + col
     mov ax, brick_ind_y
     mov bx, 29
     mul bx
     add ax, brick_ind_x
-    
-    push si
+    mov brick_ind, ax
+
     mov si, ax
     cmp bricks[si], 0
+    je no_brick_at_point
+
+
+    ; brick_offset_x = col * stride_x + 1
+    mov ax, brick_ind_x
+    mov bx, brick_stride_x
+    mul bx
+    inc ax
+    mov brick_offset_x, ax
+
+
+    ; brick_offset_y = row * stride_y + 1
+    mov ax, brick_ind_y
+    mov bx, brick_stride_y
+    mul bx
+    inc ax
+    mov brick_offset_y, ax
+
+    mov brick_found, 1
+
+no_brick_at_point:
+
     pop si
-    je brick_not_found
-        mov brick_ind, ax
-        
-        mov ax, brick_ind_x
-        mov bx, brick_stride_x
-        mul bx
-        
-        mov brick_offset_x, ax
-        
-        mov ax, brick_ind_y
-        mov bx, brick_stride_y
-        mul bx
-        
-        mov brick_offset_y, ax
-        
-        mov brick_found, 1    
-        pop dx
-        pop bx
-        pop ax
-        ret
-        
-    brick_not_found:
     pop dx
     pop bx
-    pop ax 
+    pop ax
     ret
+
+check_brick_at_point endp
+      
+      
+;-------------------------------------------------------------------  
+
+
+flip_proj_x proc
+
+    push bx
+
+    mov bx, 6
+    sub bx, proj_speed_x[si]
+    mov proj_speed_x[si], bx
+
+    pop bx
+    ret
+
+flip_proj_x endp    
+                                                                     
+                                                                     
+;------------------------------------------------------------------- 
     
-find_brick endp
+    
+flip_proj_y proc
+
+    push bx
+
+    mov bx, 6
+    sub bx, proj_speed_y[si]
+    mov proj_speed_y[si], bx
+
+    pop bx
+    ret
+
+flip_proj_y endp
 
 
 ;------------------------------------------------------------------- 
@@ -924,9 +955,23 @@ key_listener proc
     jne n3 
     cmp al, 32
     jne n3
-        mov proj_active[0], 1
-        mov proj_speed_y[0], 2 
-        mov proj_speed_x[0], 2
+        mov word ptr proj_active[0], 1
+        mov word ptr proj_speed_y[0], 2
+        mov word ptr proj_speed_x[0], 2
+        
+        mov word ptr proj_active[2], 1
+        mov word ptr proj_speed_y[2], 2
+        mov word ptr proj_speed_x[2], 2
+        
+        mov word ptr proj_active[4], 1
+        mov word ptr proj_speed_y[4], 2
+        mov word ptr proj_speed_x[4], 4
+        
+        mov word ptr proj_active[6], 1
+        mov word ptr proj_speed_y[6], 2
+        mov word ptr proj_speed_x[6], 5
+        
+        mov game_started, 1
         
     n3:
     
@@ -962,7 +1007,7 @@ brick_stride_y  dw 5
 
 brick_offset_x  dw 0
 brick_offset_y  dw 0
-bricks          dw 348 dup (1)
+bricks          db 348 dup (1)
 
 brick_coords_x  dw 0
 brick_coords_y  dw 0
@@ -972,16 +1017,16 @@ brick_ind_y     dw 0
 brick_found     dw 0     
 
 ; projectile vars
-proj_pos_x      dw 106, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-proj_pos_y      dw 167, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+proj_pos_x      dw 106, 106, 106, 106, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+proj_pos_y      dw 167, 167, 167, 167, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 proj_speed_x    dw 50 dup(3)
 proj_speed_y    dw 50 dup(3)
 proj_steps_x    dw 50 dup(0)
 proj_steps_y    dw 50 dup(0)
 proj_active     dw 50 dup(0)
 
-proj_lastpos_x  dw 106, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-proj_lastpos_y  dw 167, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+proj_lastpos_x  dw 106, 106, 106, 106, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+proj_lastpos_y  dw 167, 167, 167, 167, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
 proj_size       dw 2
 proj_top_left   db 0

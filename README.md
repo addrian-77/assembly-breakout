@@ -16,5 +16,5 @@ This project aims to port the classic Breakout game into 8086 Assembly.
 - For paddle, a full initial draw is done, then only the outer margins are redrawn to save performance
 
 ## Missing features
-- Bricks collision checker
+- Score
 - Powerups, pickups
