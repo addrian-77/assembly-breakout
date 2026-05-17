@@ -601,18 +601,18 @@ reset_projectiles_loop:
     mov word ptr proj_pos_y[0], 167
     mov word ptr proj_lastpos_x[0], 106
     mov word ptr proj_lastpos_y[0], 167
-    mov word ptr proj_pos_x[2], 106
-    mov word ptr proj_pos_y[2], 167
-    mov word ptr proj_lastpos_x[2], 106
-    mov word ptr proj_lastpos_y[2], 167
-    mov word ptr proj_pos_x[4], 106
-    mov word ptr proj_pos_y[4], 167
-    mov word ptr proj_lastpos_x[4], 106
-    mov word ptr proj_lastpos_y[4], 167
-    mov word ptr proj_pos_x[6], 106
-    mov word ptr proj_pos_y[6], 167
-    mov word ptr proj_lastpos_x[6], 106
-    mov word ptr proj_lastpos_y[6], 167
+    ;mov word ptr proj_pos_x[2], 106
+    ;mov word ptr proj_pos_y[2], 167
+    ;mov word ptr proj_lastpos_x[2], 106
+    ;mov word ptr proj_lastpos_y[2], 167
+    ;mov word ptr proj_pos_x[4], 106
+    ;mov word ptr proj_pos_y[4], 167
+    ;mov word ptr proj_lastpos_x[4], 106
+    ;mov word ptr proj_lastpos_y[4], 167
+    ;mov word ptr proj_pos_x[6], 106
+    ;mov word ptr proj_pos_y[6], 167
+    ;mov word ptr proj_lastpos_x[6], 106
+    ;mov word ptr proj_lastpos_y[6], 167
     
     mov word ptr pos_x, 100
     
@@ -1591,17 +1591,17 @@ key_listener proc
             mov word ptr proj_speed_y[0], 1
             mov word ptr proj_speed_x[0], 2
             
-            mov word ptr proj_active[2], 1
-            mov word ptr proj_speed_y[2], 1
-            mov word ptr proj_speed_x[2], 2
+            ;mov word ptr proj_active[2], 1
+            ;mov word ptr proj_speed_y[2], 1
+            ;mov word ptr proj_speed_x[2], 2
             
-            mov word ptr proj_active[4], 1
-            mov word ptr proj_speed_y[4], 1
-            mov word ptr proj_speed_x[4], 4
+            ;mov word ptr proj_active[4], 1
+            ;mov word ptr proj_speed_y[4], 1
+            ;mov word ptr proj_speed_x[4], 4
             
-            mov word ptr proj_active[6], 1
-            mov word ptr proj_speed_y[6], 1
-            mov word ptr proj_speed_x[6], 5
+            ;mov word ptr proj_active[6], 1
+            ;mov word ptr proj_speed_y[6], 1
+            ;mov word ptr proj_speed_x[6], 5
             
             mov game_started, 1
             
@@ -1690,17 +1690,17 @@ key_listener proc
         mov word ptr proj_speed_y[0], 1
         mov word ptr proj_speed_x[0], 2
         
-        mov word ptr proj_active[2], 1
-        mov word ptr proj_speed_y[2], 1
-        mov word ptr proj_speed_x[2], 2
+        ;mov word ptr proj_active[2], 1
+        ;mov word ptr proj_speed_y[2], 1
+        ;mov word ptr proj_speed_x[2], 2
         
-        mov word ptr proj_active[4], 1
-        mov word ptr proj_speed_y[4], 1
-        mov word ptr proj_speed_x[4], 4
+        ;mov word ptr proj_active[4], 1
+        ;mov word ptr proj_speed_y[4], 1
+        ;mov word ptr proj_speed_x[4], 4
         
-        mov word ptr proj_active[6], 1
-        mov word ptr proj_speed_y[6], 1
-        mov word ptr proj_speed_x[6], 5
+        ;mov word ptr proj_active[6], 1
+        ;mov word ptr proj_speed_y[6], 1
+        ;mov word ptr proj_speed_x[6], 5
         
         mov game_started, 1
     
@@ -1789,8 +1789,8 @@ brick_ind_y     dw 0
 brick_found     dw 0     
 
 ; projectile vars
-proj_pos_x      dw 106, 106, 106, 106, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-proj_pos_y      dw 167, 167, 167, 167, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+proj_pos_x      dw 106, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+proj_pos_y      dw 167, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 proj_speed_x    dw 25 dup(3)
 proj_speed_y    dw 25 dup(2)
 proj_steps_x    dw 25 dup(0)
@@ -1801,8 +1801,8 @@ free_projectile_index dw 0
 projectile_found dw 0
 source_projectile_index dw 0
 
-proj_lastpos_x  dw 106, 106, 106, 106, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-proj_lastpos_y  dw 167, 167, 167, 167, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+proj_lastpos_x  dw 106, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+proj_lastpos_y  dw 167, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
 proj_size       dw 2
 proj_top_left   db 0
